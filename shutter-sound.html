@@ -1,0 +1,502 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Shutter Sound</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: instrument bench — settings beside a whole-recording overview, zoomed waveform and readings below */
+:root{
+  --bg:#EDF0F2; --panel:#F8FAFB; --ink:#15202A; --muted:#5A6774; --line:#CBD3DA;
+  --trace:#1F5BB8; --pulse:#E39A2D; --pulse-fill:rgba(227,154,45,.2);
+  --good:#2C7A4B; --warn:#A86E12; --bad:#B3261E; --chip:#E3E8EC;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E141A; --panel:#151D25; --ink:#E3E9EE; --muted:#93A0AD; --line:#29343F;
+  --trace:#72A4F2; --pulse:#E8A443; --pulse-fill:rgba(232,164,67,.18);
+  --good:#5DC08A; --warn:#E0B04F; --bad:#F06B60; --chip:#1E2832; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E141A; --panel:#151D25; --ink:#E3E9EE; --muted:#93A0AD; --line:#29343F;
+  --trace:#72A4F2; --pulse:#E8A443; --pulse-fill:rgba(232,164,67,.18);
+  --good:#5DC08A; --warn:#E0B04F; --bad:#F06B60; --chip:#1E2832; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px;border-bottom:1px solid var(--line);padding-bottom:12px}
+h1{font-family:var(--f-display);font-weight:700;font-size:34px;letter-spacing:.02em;margin:0;line-height:1;text-transform:uppercase}
+h1 span{color:var(--pulse)}
+.tag{color:var(--muted);font-size:14px;max-width:60ch}
+h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.12em;text-transform:uppercase;margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:18px}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px;min-width:0;align-content:start}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+label.f{display:grid;gap:3px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-family:var(--f-display);font-weight:600}
+input[type=number],select{font-family:var(--f-mono);font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);width:7.5em}
+select.wide{width:auto}
+input[type=range]{width:100%;accent-color:var(--trace)}
+button{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--ink);background:var(--ink);color:var(--panel);border-radius:4px;padding:8px 14px;cursor:pointer}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+button.sm{padding:3px 10px;font-size:13px}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,.drop:focus-within{outline:2px solid var(--trace);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--muted);padding:7px 12px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.drop{border:1.5px dashed var(--line);border-radius:6px;padding:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;position:relative}
+.drop.over{border-color:var(--trace);background:var(--pulse-fill)}
+.drop input{position:absolute;width:1px;height:1px;opacity:0}
+.drop .name{font-family:var(--f-mono);font-size:13px;color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.hint{font-size:13px;color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.note{font-size:13px;padding:8px 10px;border-radius:4px;background:var(--chip);border-left:3px solid var(--warn)}
+.chartbox{position:relative;width:100%}
+.chartbox canvas{width:100%;height:100%;display:block;cursor:crosshair}
+#ovBox{height:120px} #dtBox{height:260px}
+.summary{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted)}
+.summary b{color:var(--ink);font-family:var(--f-mono);font-weight:500}
+.badge{display:inline-block;font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:3px;background:var(--pulse);color:#1a1205}
+.readout{font-family:var(--f-mono);font-size:14px;padding:6px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);min-height:2.2em;display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+th{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+td select{width:auto}
+.dev{display:inline-block;min-width:5.5em;padding:1px 6px;border-radius:3px;font-weight:500}
+.dev.good{color:var(--good)} .dev.warn{color:var(--warn)} .dev.bad{color:var(--bad)}
+ol.steps{margin:0;padding-left:1.2em;display:grid;gap:4px;font-size:14px;max-width:70ch}
+details summary{cursor:pointer;font-family:var(--f-display);font-weight:600;letter-spacing:.1em;text-transform:uppercase;font-size:15px;color:var(--muted)}
+details[open] summary{margin-bottom:8px}
+.rec{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+#recBtn.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.meter{height:8px;background:var(--chip);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--good);transition:width 60ms linear}
+.meter i.clip{background:var(--bad)}
+@media (prefers-reduced-motion:reduce){.meter i{transition:none}}
+h3{font-family:var(--f-display);font-weight:600;font-size:14px;letter-spacing:.08em;text-transform:uppercase;margin:6px 0 4px}
+</style>
+<nav style="max-width:1180px;margin:0 auto;padding:10px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));font:600 13px/1.4 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;display:flex;gap:16px;flex-wrap:wrap"><a href="./" style="color:inherit;opacity:.7">← All tools</a></nav>
+
+<div class="wrap">
+  <header>
+    <h1>Shutter <span>Sound</span></h1>
+    <div class="tag">Measures shutter speed from an audio recording, either of the shutter’s clicks or of a light sensor plugged into the phone’s mic input.</div>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="h-set">
+      <h2 id="h-set">Recording</h2>
+      <label class="drop" id="drop">
+        <span><strong>Choose a recording</strong> <span class="hint">or drop it here (.m4a, .wav, .mp3, .mov)</span></span>
+        <span class="name" id="fname">No file loaded</span>
+        <input type="file" id="file" accept="audio/*,video/*,.m4a,.wav,.mp3,.aac,.caf,.mov,.mp4">
+      </label>
+      <div class="rec">
+        <div class="row">
+          <button id="recBtn" type="button">● Record</button>
+          <label class="f" for="micSel" style="flex:1;min-width:150px">Input
+            <select id="micSel" class="wide" style="width:100%"><option value="">Default microphone</option></select></label>
+          <button class="ghost" id="saveWav" type="button" hidden>Save WAV</button>
+        </div>
+        <div class="meter" aria-hidden="true"><i id="meterBar"></i></div>
+        <div class="hint mono" id="recInfo">Records uncompressed audio with echo cancellation, noise suppression and auto gain turned off.</div>
+      </div>
+      <div class="row" style="align-items:center">
+        <div class="seg" role="group" aria-label="Signal type">
+          <button type="button" id="mLight" aria-pressed="true">Light sensor</button>
+          <button type="button" id="mClick" aria-pressed="false">Clicks</button>
+        </div>
+      </div>
+      <div class="hint" id="modeHint"></div>
+      <label class="f" for="sens">Sensitivity: <span class="mono" id="sensVal"></span>
+        <input type="range" id="sens" min="3" max="60" step="1" value="12"></label>
+      <div class="row" id="lightOpts">
+        <label class="f" for="polarity">Opening edge
+          <select id="polarity" class="wide"><option value="auto">Auto</option><option value="1">Rising</option><option value="-1">Falling</option></select></label>
+      </div>
+      <div class="row" id="clickOpts" hidden>
+        <label class="f" for="gap">Ignore echoes (ms)<input type="number" id="gap" value="4" min="0.5" step="0.5"></label>
+        <label class="f" for="group">New firing after (ms)<input type="number" id="group" value="300" min="20" step="10"></label>
+      </div>
+      <div class="row">
+        <button class="ghost" id="example" type="button">Load example</button>
+      </div>
+      <div class="hint mono" id="status"></div>
+      <div class="note" id="warn" hidden></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-ov">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 id="h-ov">Whole recording</h2>
+        <span class="badge" id="exBadge">Example data</span>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div class="chartbox" id="ovBox"><canvas id="ov" aria-label="Whole recording. Click to zoom the detail view there."></canvas></div>
+      <div class="hint">Click anywhere to zoom the detail view to that moment. Numbered marks are detected firings.</div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-dt">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h2 id="h-dt">Detail</h2>
+      <div class="row" style="gap:6px">
+        <button class="ghost sm" id="zOut" type="button" aria-label="Zoom out">−</button>
+        <button class="ghost sm" id="zIn" type="button" aria-label="Zoom in">+</button>
+        <button class="ghost sm" id="zFit" type="button">Fit</button>
+        <button class="ghost sm" id="clrM" type="button">Clear marks</button>
+      </div>
+    </div>
+    <div class="chartbox" id="dtBox"><canvas id="dt" aria-label="Zoomed waveform. Click twice to measure between two points."></canvas></div>
+    <div class="readout" id="readout"><span class="hint" style="font-family:var(--f-body)">Click two points on the waveform to measure between them. Clicks snap to detected edges.</span></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-res">
+    <h2 id="h-res">Readings</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Firing</th><th>At</th><th>Measured</th><th>As speed</th><th id="thEv">Edges</th><th>Dial setting</th><th>Error</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="hint">Within ±⅓ stop is excellent; ±½ stop is fine for negative film. Fire each speed 3–5 times and look at the spread as well as the average.</div>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>How to record</summary>
+      <h3>Light sensor (accurate to 1/4000)</h3>
+      <ol class="steps">
+        <li>Solder a photodiode, phototransistor or small solar cell to a 3.5 mm TRRS plug: one lead to the mic contact (the sleeve-side ring), the other to ground.</li>
+        <li>Connect it through a USB-C to 3.5 mm adapter that passes a mic signal, and record with Voice Memos or any recorder app.</li>
+        <li>Tape the sensor over the film gate with the back open, point the lens at a bright, steady light, and fire.</li>
+        <li>Move the sensor to the top, middle and bottom of the gate and compare readings at 1/1000 and faster to check curtain travel.</li>
+      </ol>
+      <h3>Clicks (rough, slow speeds)</h3>
+      <ol class="steps">
+        <li>Hold the phone’s microphone close to the camera in a quiet room.</li>
+        <li>Fire a few times at each speed, leaving a second or two between firings.</li>
+        <li>Zoom into each firing and mark the opening and closing sounds yourself if the automatic pairing picks the wrong pair. On an SLR the mirror makes its own clicks, so this method works best from 1/30 to several seconds.</li>
+      </ol>
+    </details>
+  </section>
+</div>
+
+<script>
+(() => {
+const $=id=>document.getElementById(id);
+const SPEEDS=[[30,'30 s'],[15,'15 s'],[8,'8 s'],[4,'4 s'],[2,'2 s'],[1,'1 s'],[1/2,'1/2'],[1/4,'1/4'],[1/8,'1/8'],[1/15,'1/15'],[1/30,'1/30'],[1/60,'1/60'],[1/125,'1/125'],[1/250,'1/250'],[1/500,'1/500'],[1/1000,'1/1000'],[1/2000,'1/2000'],[1/4000,'1/4000']];
+const SR=48000;
+let st={x:null,sr:SR,isExample:true,events:[],firings:[],nominal:[],dur:0};
+let mode='light', sens={light:12,click:10};
+let view={a:0,b:1}, marks=[], hoverT=null;
+const ov=$('ov'), dt=$('dt');
+
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function fmtSpeed(sec){if(sec>=1)return sec.toFixed(sec<10?1:0)+' s';const d=1/sec;return '1/'+(d<10?d.toFixed(1):Math.round(d))}
+const fmtMs=s=>{const ms=s*1000;return (Math.abs(ms)<10?ms.toFixed(3):Math.abs(ms)<100?ms.toFixed(2):ms.toFixed(1))+' ms'};
+function nearest(sec){let b=0,bd=1e9;SPEEDS.forEach(([v],i)=>{const d=Math.abs(Math.log2(sec/v));if(d<bd){bd=d;b=i}});return b}
+function median(arr){const n=arr.length,step=Math.max(1,Math.floor(n/40000)),s=[];for(let i=0;i<n;i+=step)s.push(arr[i]);s.sort((a,b)=>a-b);return s[s.length>>1]||0}
+function niceStep(raw){const p=Math.pow(10,Math.floor(Math.log10(raw||1)));const m=raw/p;return (m<=1?1:m<=2?2:m<=5?5:10)*p}
+const setStatus=t=>$('status').textContent=t||'';
+function showWarn(t){const w=$('warn');w.hidden=!t;w.textContent=t||''}
+
+/* ---------- detection ---------- */
+function detectLight(){
+  const x=st.x,sr=st.sr,n=x.length,K=sens.light;
+  const s=new Float32Array(n); for(let i=2;i<n;i++)s[i]=(x[i]+x[i-1]+x[i-2])/3;
+  const k=Math.max(2,Math.round(0.0001*sr)); const d=new Float32Array(n);
+  for(let i=k;i<n;i++)d[i]=s[i]-s[i-k];
+  const ad=new Float32Array(n);for(let i=0;i<n;i++)ad[i]=Math.abs(d[i]);
+  const thr=Math.max(median(ad)*1.4826*K,1e-5);
+  const ev=[];
+  for(let i=k;i<n;i++){
+    if(Math.abs(d[i])>thr){
+      const sg=Math.sign(d[i]);let pk=i,pm=Math.abs(d[i]);
+      while(i<n&&Math.abs(d[i])>thr&&Math.sign(d[i])===sg){if(Math.abs(d[i])>pm){pm=Math.abs(d[i]);pk=i}i++}
+      ev.push({t:(pk-k/2)/sr,sign:sg,mag:pm});
+    }
+  }
+  const pol=$('polarity').value; const S=pol==='auto'?(ev[0]?ev[0].sign:1):+pol;
+  st.events=ev; const F=[]; let open=null, extra=0;
+  ev.forEach(e=>{
+    if(!open){ if(e.sign===S){open=e;extra=0} }
+    else if(e.sign===-S){F.push({start:open.t,end:e.t,sec:e.t-open.t,edges:2+extra});open=null}
+    else extra++;
+  });
+  st.firings=F; st.unpaired=!!open; st.pol=S;
+}
+function detectClicks(){
+  const x=st.x,sr=st.sr,n=x.length,K=sens.click;
+  const win=Math.max(1,Math.round(0.00025*sr)); const e=new Float32Array(n); let acc=0;
+  const hp=i=>i>0?Math.abs(x[i]-x[i-1]):0;
+  for(let i=0;i<n;i++){acc+=hp(i);if(i>=win)acc-=hp(i-win);e[i]=acc/win}
+  const thr=Math.max(median(e)*K,1e-5), gap=(+$('gap').value||4)/1000*sr, half=win>>1;
+  const ev=[]; let last=-1e12;
+  for(let i=1;i<n;i++) if(e[i]>=thr&&e[i-1]<thr&&i-last>gap){ev.push({t:(i-half)/sr,sign:0});last=i}
+  st.events=ev;
+  const G=(+$('group').value||300)/1000, F=[]; let cur=null;
+  ev.forEach(v=>{ if(!cur||v.t-cur.ts[cur.ts.length-1]>G){cur={ts:[v.t]};F.push(cur)} else cur.ts.push(v.t) });
+  st.firings=F.map(f=>({start:f.ts[0],end:f.ts[f.ts.length-1],sec:f.ts.length>1?f.ts[1]-f.ts[0]:null,edges:f.ts.length}));
+}
+function analyze(keepNom){
+  if(!st.x)return;
+  mode==='light'?detectLight():detectClicks();
+  if(!keepNom||st.nominal.length!==st.firings.length) st.nominal=st.firings.map(f=>f.sec?nearest(f.sec):12);
+  const w=[];
+  if(mode==='light'&&st.unpaired) w.push('The last firing has an opening edge with no closing edge. If every firing reads this way, switch Opening edge to the other direction.');
+  if(mode==='light'&&st.firings.length===0&&st.events.length) w.push('Edges were found but none pair up. Try the other Opening edge setting or lower the sensitivity.');
+  if(mode==='click'&&st.firings.some(f=>f.edges===1)) w.push('Some firings have only one click. Raise the sensitivity or lower “Ignore echoes”.');
+  showWarn(w.join(' '));
+  renderResults(); drawAll();
+}
+
+/* ---------- results ---------- */
+function renderResults(){
+  const tb=$('rows');tb.textContent='';
+  $('thEv').textContent=mode==='light'?'Edges':'Clicks';
+  if(!st.firings.length){const tr=tb.insertRow(),td=tr.insertCell();td.colSpan=8;td.style.textAlign='left';td.style.fontFamily='var(--f-body)';td.textContent=st.x?'No firings found. Try a higher sensitivity.':'Load a recording to begin.'}
+  st.firings.forEach((f,i)=>{
+    const tr=tb.insertRow(),c=()=>tr.insertCell();
+    c().textContent='#'+(i+1);
+    c().textContent=f.start.toFixed(3)+' s';
+    c().textContent=f.sec?fmtMs(f.sec):'—';
+    c().textContent=f.sec?fmtSpeed(f.sec):'—';
+    c().textContent=f.edges;
+    const sc=c(),sel=document.createElement('select');sel.id='nom'+i;sel.setAttribute('aria-label','Dial setting for firing '+(i+1));
+    SPEEDS.forEach(([,l],k)=>{const o=document.createElement('option');o.value=k;o.textContent=l;sel.appendChild(o)});
+    sel.value=st.nominal[i];sc.appendChild(sel);
+    const dc=c(),sp=document.createElement('span');dc.appendChild(sp);
+    const upd=()=>{if(!f.sec){sp.textContent='—';sp.className='dev';return}
+      const d=Math.log2(f.sec/SPEEDS[st.nominal[i]][0]),a=Math.abs(d);
+      sp.className='dev '+(a<=1/3?'good':a<=2/3?'warn':'bad');
+      sp.textContent=(d>=0?'+':'−')+a.toFixed(2)+' EV'+(a<0.05?'':d>0?' slow':' fast')};
+    sel.onchange=()=>{st.nominal[i]=+sel.value;upd()}; upd();
+    const vc=c(),b=document.createElement('button');b.className='ghost sm';b.type='button';b.textContent='View';
+    b.onclick=()=>{zoomTo(f);$('dtBox').scrollIntoView({block:'nearest',behavior:'smooth'})};vc.appendChild(b);
+  });
+  const s=$('summary');s.textContent='';
+  const add=(k,v)=>{const sp=document.createElement('span');sp.append(k+' ');const b=document.createElement('b');b.textContent=v;sp.append(b);s.append(sp)};
+  if(st.x){
+    add('Length',st.dur.toFixed(2)+' s'); add('Sample rate',(st.sr/1000)+' kHz · '+(1e6/st.sr).toFixed(1)+' µs');
+    add('Firings',String(st.firings.length));
+    const secs=st.firings.map(f=>f.sec).filter(Boolean);
+    if(secs.length>1){const mean=secs.reduce((a,b)=>a+b,0)/secs.length,ev=secs.map(x=>Math.log2(x/mean));
+      add('Average',fmtSpeed(mean)+' ('+fmtMs(mean)+')');add('Spread',(Math.max(...ev)-Math.min(...ev)).toFixed(2)+' EV')}
+  }
+  $('exBadge').hidden=!st.isExample;
+}
+function zoomTo(f){const len=Math.max((f.end-f.start),0.0005);const pad=Math.max(len*0.6,0.002);setView(f.start-pad,f.end+pad)}
+function setView(a,b){const minW=40/st.sr;if(b-a<minW){const c=(a+b)/2;a=c-minW/2;b=c+minW/2}
+  if(a<0){b-=a;a=0} if(b>st.dur){a-=b-st.dur;b=st.dur;a=Math.max(0,a)} view={a,b};drawDetail();drawOverview()}
+
+/* ---------- drawing ---------- */
+function prep(c){const dpr=window.devicePixelRatio||1,W=c.clientWidth,H=c.clientHeight;c.width=W*dpr;c.height=H*dpr;const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);return {g,W,H}}
+function wave(g,a,b,X,Y,col){ // a,b sample indices
+  const x=st.x; g.strokeStyle=col; g.lineWidth=1.2; g.beginPath();
+  const px=Math.max(1,Math.round(X(b)-X(a))), spp=(b-a)/px;
+  if(spp<=2){for(let i=Math.max(0,Math.floor(a));i<=Math.min(x.length-1,Math.ceil(b));i++){const xx=X(i),yy=Y(x[i]);i<=Math.floor(a)+0?g.moveTo(xx,yy):g.lineTo(xx,yy)}}
+  else{for(let p=0;p<px;p++){const i0=Math.floor(a+p*spp),i1=Math.min(x.length,Math.floor(a+(p+1)*spp));let mn=1e9,mx=-1e9;for(let i=i0;i<i1;i++){const v=x[i];if(v<mn)mn=v;if(v>mx)mx=v}
+    if(i1>i0){const xx=X(a)+p+.5;g.moveTo(xx,Y(mx));g.lineTo(xx,Y(mn)+.5)}}}
+  g.stroke();
+}
+function drawOverview(){
+  const {g,W,H}=prep(ov); if(!st.x)return;
+  const pad={l:6,r:6,t:16,b:18},pw=W-pad.l-pad.r,ph=H-pad.t-pad.b,n=st.x.length;
+  let amp=1e-6;for(let i=0;i<n;i+=Math.max(1,n>>14))amp=Math.max(amp,Math.abs(st.x[i]));for(const f of st.firings){}
+  amp=Math.max(amp,peakAbs())*1.05;
+  const X=i=>pad.l+i/n*pw, Y=v=>pad.t+ph/2-v/amp*ph/2;
+  const muted=css('--muted'),line=css('--line'),pulse=css('--pulse'),pf=css('--pulse-fill'),ink=css('--ink');
+  g.fillStyle=pf; g.fillRect(X(view.a*st.sr),pad.t,Math.max(2,X(view.b*st.sr)-X(view.a*st.sr)),ph);
+  wave(g,0,n,X,Y,css('--trace'));
+  g.font='11px '+css('--f-mono');g.textBaseline='bottom';g.textAlign='center';
+  st.firings.forEach((f,i)=>{const x=X(f.start*st.sr);g.strokeStyle=pulse;g.lineWidth=2;g.beginPath();g.moveTo(x,pad.t);g.lineTo(x,pad.t+ph);g.stroke();g.fillStyle=pulse;g.fillText('#'+(i+1),x,pad.t-2)});
+  g.strokeStyle=ink;g.lineWidth=1;g.strokeRect(X(view.a*st.sr)+.5,pad.t+.5,Math.max(2,X(view.b*st.sr)-X(view.a*st.sr)),ph-1);
+  g.fillStyle=muted;g.textBaseline='top';const step=niceStep(st.dur/Math.max(2,Math.floor(pw/80)));
+  for(let t=0;t<=st.dur+1e-9;t+=step){const x=X(t*st.sr);g.textAlign=x<20?'left':x>W-20?'right':'center';g.fillText(t.toFixed(step<1?1:0)+' s',x,pad.t+ph+3)}
+}
+let _pk=null;function peakAbs(){if(_pk!==null)return _pk;let m=1e-6;for(let i=0;i<st.x.length;i++){const v=Math.abs(st.x[i]);if(v>m)m=v}return _pk=m}
+function drawDetail(){
+  const {g,W,H}=prep(dt); if(!st.x)return;
+  const pad={l:12,r:12,t:22,b:30},pw=W-pad.l-pad.r,ph=H-pad.t-pad.b,sr=st.sr;
+  const a=view.a*sr,b=view.b*sr;
+  let amp=1e-6;for(let i=Math.max(0,Math.floor(a));i<Math.min(st.x.length,Math.ceil(b));i++)amp=Math.max(amp,Math.abs(st.x[i]));amp*=1.1;
+  const X=i=>pad.l+(i-a)/(b-a)*pw, Y=v=>pad.t+ph/2-v/amp*ph/2, XT=t=>X(t*sr);
+  const muted=css('--muted'),line=css('--line'),pulse=css('--pulse'),pf=css('--pulse-fill'),ink=css('--ink');
+  // grid & ticks (ms from left edge)
+  const wms=(view.b-view.a)*1000, step=niceStep(wms/Math.max(2,Math.floor(pw/90)));
+  g.font='11px '+css('--f-mono');g.textBaseline='top';g.fillStyle=muted;g.strokeStyle=line;g.lineWidth=1;
+  g.beginPath();g.moveTo(pad.l,Y(0)+.5);g.lineTo(W-pad.r,Y(0)+.5);g.stroke();
+  for(let t=0;t<=wms+1e-9;t+=step){const x=pad.l+t/wms*pw;g.beginPath();g.moveTo(x+.5,pad.t);g.lineTo(x+.5,pad.t+ph);g.stroke();
+    g.textAlign=x<24?'left':x>W-24?'right':'center';g.fillText('+'+(+t.toFixed(4))+' ms',x,pad.t+ph+6)}
+  g.textAlign='left';g.textBaseline='bottom';g.fillText('from '+view.a.toFixed(4)+' s',pad.l,pad.t-6);
+  // firings
+  st.firings.forEach((f,i)=>{if(f.end<view.a||f.start>view.b)return;
+    if(mode==='light'){g.fillStyle=pf;g.fillRect(XT(f.start),pad.t,XT(f.end)-XT(f.start),ph)}
+    g.fillStyle=pulse;g.textAlign='left';g.textBaseline='top';g.fillText('#'+(i+1)+(f.sec?' · '+fmtMs(f.sec):''),Math.max(pad.l,XT(f.start))+4,pad.t+4)});
+  wave(g,a,b,X,Y,css('--trace'));
+  // edge ticks
+  g.strokeStyle=pulse;g.lineWidth=2;
+  st.events.forEach(e=>{if(e.t<view.a||e.t>view.b)return;const x=XT(e.t);g.beginPath();g.moveTo(x,pad.t+ph-10);g.lineTo(x,pad.t+ph);g.stroke()});
+  // marks
+  marks.forEach((t,i)=>{const x=XT(t);g.strokeStyle=ink;g.lineWidth=1.5;g.setLineDash([5,3]);g.beginPath();g.moveTo(x,pad.t);g.lineTo(x,pad.t+ph);g.stroke();g.setLineDash([]);
+    g.fillStyle=ink;g.font='600 13px '+css('--f-display');g.textAlign='center';g.textBaseline='bottom';g.fillText(i?'B':'A',x,pad.t-4)});
+  if(hoverT!=null){const x=XT(hoverT);g.strokeStyle=muted;g.lineWidth=1;g.beginPath();g.moveTo(x+.5,pad.t);g.lineTo(x+.5,pad.t+ph);g.stroke()}
+  dt._map={pad,pw,W};
+}
+function drawAll(){drawOverview();drawDetail()}
+
+/* ---------- interaction ---------- */
+function tAt(c,ev,a,b){const r=c.getBoundingClientRect(),m=c===dt?dt._map:null;const pl=m?m.pad.l:6,pw=m?m.pw:r.width-12;return a+Math.min(1,Math.max(0,(ev.clientX-r.left-pl)/pw))*(b-a)}
+ov.addEventListener('click',e=>{if(!st.x)return;const t=tAt(ov,e,0,st.dur);const w=view.b-view.a;setView(t-w/2,t+w/2)});
+dt.addEventListener('pointermove',e=>{if(!st.x)return;hoverT=tAt(dt,e,view.a,view.b);drawDetail()});
+dt.addEventListener('pointerleave',()=>{hoverT=null;drawDetail()});
+dt.addEventListener('click',e=>{
+  if(!st.x)return; let t=tAt(dt,e,view.a,view.b);
+  const pxT=(view.b-view.a)/(dt._map.pw||1)*8; let best=null;
+  st.events.forEach(ev=>{const d=Math.abs(ev.t-t);if(d<pxT&&(!best||d<Math.abs(best-t)))best=ev.t}); if(best!=null)t=best;
+  marks=marks.length>=2?[t]:[...marks,t]; renderReadout(); drawDetail();
+});
+function renderReadout(){const r=$('readout');r.textContent='';
+  if(!marks.length){const s=document.createElement('span');s.className='hint';s.style.fontFamily='var(--f-body)';s.textContent='Click two points on the waveform to measure between them. Clicks snap to detected edges.';r.append(s);return}
+  const add=t=>{const s=document.createElement('span');s.textContent=t;r.append(s)};
+  add('A '+marks[0].toFixed(5)+' s');
+  if(marks.length>1){const d=Math.abs(marks[1]-marks[0]);add('B '+marks[1].toFixed(5)+' s');const b=document.createElement('b');b.textContent='A→B '+fmtMs(d)+' = '+fmtSpeed(d);r.append(b)}
+}
+$('zIn').onclick=()=>{const c=(view.a+view.b)/2,w=(view.b-view.a)/2.5;setView(c-w/2,c+w/2)};
+$('zOut').onclick=()=>{const c=(view.a+view.b)/2,w=(view.b-view.a)*2.5;setView(c-w/2,c+w/2)};
+$('zFit').onclick=()=>setView(0,st.dur);
+$('clrM').onclick=()=>{marks=[];renderReadout();drawDetail()};
+
+function setMode(m){mode=m;$('mLight').setAttribute('aria-pressed',m==='light');$('mClick').setAttribute('aria-pressed',m==='click');
+  $('lightOpts').hidden=m!=='light';$('clickOpts').hidden=m!=='click';
+  $('sens').value=sens[m];$('sensVal').textContent='×'+sens[m]+' noise';
+  $('modeHint').textContent=m==='light'?'Finds the sharp rise and fall when light hits the sensor. Accurate at every speed, including 1/4000.':'Finds the opening and closing clicks. Each firing’s reading is the time from its first click to its second.';
+  marks=[];renderReadout();analyze(false)}
+$('mLight').onclick=()=>setMode('light');$('mClick').onclick=()=>setMode('click');
+$('sens').addEventListener('input',e=>{sens[mode]=+e.target.value;$('sensVal').textContent='×'+sens[mode]+' noise';analyze(true)});
+['polarity','gap','group'].forEach(id=>$(id).addEventListener('change',()=>analyze(false)));
+
+function loadSamples(x,sr,label){
+  let m=0;for(let i=0;i<x.length;i++)m+=x[i];m/=x.length||1;for(let i=0;i<x.length;i++)x[i]-=m;
+  st={x,sr,isExample:false,events:[],firings:[],nominal:[],dur:x.length/sr};_pk=null;marks=[];renderReadout();
+  view={a:0,b:st.dur}; analyze(false);
+  if(st.firings[0]) zoomTo(st.firings[0]); else setView(0,st.dur);
+  setStatus(label+' · '+st.dur.toFixed(2)+' s at '+(sr/1000)+' kHz.');
+}
+async function loadFile(f){
+  if(!f)return; $('fname').textContent=f.name; setStatus('Decoding audio…'); showWarn('');
+  try{
+    const buf=await f.arrayBuffer();
+    const ctx=new OfflineAudioContext(1,1,SR);
+    const ab=await ctx.decodeAudioData(buf);
+    if(ab.duration>600) throw new Error('long');
+    const x=new Float32Array(ab.length);
+    for(let c=0;c<ab.numberOfChannels;c++){const d=ab.getChannelData(c);for(let i=0;i<d.length;i++)x[i]+=d[i]/ab.numberOfChannels}
+    loadSamples(x,ab.sampleRate,'Loaded');
+  }catch(e){setStatus('');showWarn(e&&e.message==='long'?'That recording is over 10 minutes. Trim it to the part with the firings.':'This browser could not decode the file. Try a .m4a or .wav recording, or open the page in Safari.')}
+}
+
+/* ---------- in-page recording ---------- */
+const MAX_REC=300; let rec=null, lastRec=null;
+const BLOCKED='This view can’t use the microphone. Recording works when the page file is opened directly in Chrome or Safari, or from your own HTTPS site. Until then, record with Voice Memos and load the file above.';
+async function listInputs(){
+  try{const devs=await navigator.mediaDevices.enumerateDevices();const sel=$('micSel'),cur=sel.value;
+    sel.textContent='';const d0=document.createElement('option');d0.value='';d0.textContent='Default microphone';sel.append(d0);
+    devs.filter(d=>d.kind==='audioinput'&&d.deviceId&&d.deviceId!=='default').forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=d.label||('Input '+(i+1));sel.append(o)});
+    sel.value=[...sel.options].some(o=>o.value===cur)?cur:''}catch(e){}
+}
+async function startRec(){
+  if(!navigator.mediaDevices?.getUserMedia){showWarn(BLOCKED);return}
+  const dev=$('micSel').value;
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:dev?{exact:dev}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1,sampleRate:48000}})}
+  catch(e){showWarn(e&&e.name==='NotFoundError'?'No microphone was found. Check that the adapter or sensor is plugged in.':BLOCKED);return}
+  showWarn('');
+  let ctx;try{ctx=new AudioContext({sampleRate:48000})}catch(e){ctx=new AudioContext()}
+  await ctx.resume();
+  const src=ctx.createMediaStreamSource(stream), chunks=[]; let n=0, peak=0;
+  const onChunk=ch=>{chunks.push(ch);n+=ch.length;let p=0;for(let i=0;i<ch.length;i++){const a=Math.abs(ch[i]);if(a>p)p=a}peak=Math.max(peak*0.85,p);
+    if(p>=0.99)rec.clipped=true; if(n/ctx.sampleRate>=MAX_REC)stopRec()};
+  let node,sink=ctx.createGain();sink.gain.value=0;sink.connect(ctx.destination);
+  try{
+    const code='class R extends AudioWorkletProcessor{process(i){const c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true}}registerProcessor("rec",R)';
+    const url=URL.createObjectURL(new Blob([code],{type:'application/javascript'}));
+    await ctx.audioWorklet.addModule(url); node=new AudioWorkletNode(ctx,'rec'); node.port.onmessage=e=>onChunk(e.data);
+  }catch(e){node=ctx.createScriptProcessor(4096,1,1);node.onaudioprocess=e=>onChunk(e.inputBuffer.getChannelData(0).slice(0))}
+  src.connect(node);node.connect(sink);
+  rec={stream,ctx,node,src,chunks,get n(){return n},clipped:false,t0:performance.now()};
+  const tr=stream.getAudioTracks()[0], s=tr.getSettings?tr.getSettings():{};
+  const off=['echoCancellation','noiseSuppression','autoGainControl'].filter(k=>s[k]===true);
+  $('recInfo').textContent='Recording from '+(tr.label||'microphone')+' at '+(ctx.sampleRate/1000)+' kHz'+(off.length?' · could not turn off: '+off.join(', '):' · voice processing off');
+  $('recBtn').textContent='■ Stop';$('recBtn').classList.add('on');$('saveWav').hidden=true;
+  const tick=()=>{if(!rec)return;const bar=$('meterBar');bar.style.width=Math.min(100,peak*100)+'%';bar.classList.toggle('clip',peak>=0.99);
+    setStatus('Recording… '+(n/ctx.sampleRate).toFixed(1)+' s'+(rec.clipped?' · clipping, lower the input level or move away':''));requestAnimationFrame(tick)};
+  requestAnimationFrame(tick);
+  listInputs();
+}
+function stopRec(){
+  if(!rec)return; const r=rec; rec=null;
+  try{r.src.disconnect();r.node.disconnect()}catch(e){} r.stream.getTracks().forEach(t=>t.stop());
+  const x=new Float32Array(r.n);let o=0;r.chunks.forEach(c=>{x.set(c,o);o+=c.length});
+  const sr=r.ctx.sampleRate; r.ctx.close();
+  $('recBtn').textContent='● Record';$('recBtn').classList.remove('on');$('meterBar').style.width='0';
+  if(x.length<sr*0.1){setStatus('Recording was too short.');return}
+  lastRec={x:x.slice(),sr,when:new Date()};
+  $('fname').textContent='Recording '+lastRec.when.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  $('saveWav').hidden=false;
+  loadSamples(x,sr,'Recorded'+(r.clipped?' (clipped in places)':''));
+}
+$('recBtn').onclick=()=>rec?stopRec():startRec();
+function wavBlob(x,sr){
+  const n=x.length,b=new ArrayBuffer(44+n*4),v=new DataView(b);const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  w(0,'RIFF');v.setUint32(4,36+n*4,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,3,true);v.setUint16(22,1,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*4,true);v.setUint16(32,4,true);v.setUint16(34,32,true);w(36,'data');v.setUint32(40,n*4,true);
+  for(let i=0;i<n;i++)v.setFloat32(44+i*4,x[i],true); return new Blob([b],{type:'audio/wav'});
+}
+$('saveWav').onclick=async()=>{
+  if(!lastRec)return; const blob=wavBlob(lastRec.x,lastRec.sr);
+  const name='shutter-'+lastRec.when.toISOString().slice(0,19).replace(/[:T]/g,'-')+'.wav';
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();a.remove();
+};
+if(navigator.mediaDevices?.addEventListener)navigator.mediaDevices.addEventListener('devicechange',listInputs);
+listInputs();
+$('file').addEventListener('change',e=>loadFile(e.target.files[0]));
+const drop=$('drop');
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
+
+/* ---------- example: photodiode through an AC-coupled mic input ---------- */
+function loadExample(){
+  const sr=SR,dur=1.2,n=Math.round(sr*dur),x=new Float32Array(n);
+  const P=[[0.25,0.00430],[0.60,0.00398],[0.95,0.00462]];
+  let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+  const g=()=>Math.sqrt(-2*Math.log(rnd()+1e-9))*Math.cos(2*Math.PI*rnd());
+  const tau=0.02,alpha=tau/(tau+1/sr),ramp=0.00006;let prevIn=0,prevOut=0;
+  for(let i=0;i<n;i++){const t=i/sr;let v=0;
+    for(const [s,d] of P){const up=Math.min(1,Math.max(0,(t-s)/ramp)),dn=Math.min(1,Math.max(0,(t-s-d)/ramp));v+=0.6*(up-dn)}
+    const out=alpha*(prevOut+v-prevIn);prevIn=v;prevOut=out;x[i]=out+g()*0.004}
+  st={x,sr,isExample:true,events:[],firings:[],nominal:[],dur};_pk=null;marks=[];renderReadout();
+  if(mode!=='light'){mode='light';setMode('light')}else analyze(false);
+  st.nominal=st.firings.map(()=>13);renderResults();
+  if(st.firings[0])zoomTo(st.firings[0]);
+  $('fname').textContent='No file loaded';
+  setStatus('Showing example: three firings at 1/250 from a light sensor.');
+}
+$('example').onclick=loadExample;
+
+new ResizeObserver(drawAll).observe($('dtBox'));
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',drawAll)}catch(e){}
+new MutationObserver(drawAll).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+$('sensVal').textContent='×'+sens.light+' noise';
+$('modeHint').textContent='Finds the sharp rise and fall when light hits the sensor. Accurate at every speed, including 1/4000.';
+loadExample();
+})();
+</script>
+</body></html>

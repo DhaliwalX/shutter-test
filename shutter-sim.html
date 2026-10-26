@@ -1,0 +1,274 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Shutter Sim</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: instrument bench — signal settings left, the known-answer sheet right, recording steps below */
+:root{
+  --bg:#EDF0F2; --panel:#F8FAFB; --ink:#15202A; --muted:#5A6774; --line:#CBD3DA;
+  --trace:#1F5BB8; --pulse:#E39A2D; --pulse-fill:rgba(227,154,45,.2);
+  --good:#2C7A4B; --warn:#A86E12; --bad:#B3261E; --chip:#E3E8EC;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E141A; --panel:#151D25; --ink:#E3E9EE; --muted:#93A0AD; --line:#29343F;
+  --trace:#72A4F2; --pulse:#E8A443; --pulse-fill:rgba(232,164,67,.18);
+  --good:#5DC08A; --warn:#E0B04F; --bad:#F06B60; --chip:#1E2832; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E141A; --panel:#151D25; --ink:#E3E9EE; --muted:#93A0AD; --line:#29343F;
+  --trace:#72A4F2; --pulse:#E8A443; --pulse-fill:rgba(232,164,67,.18);
+  --good:#5DC08A; --warn:#E0B04F; --bad:#F06B60; --chip:#1E2832; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px;border-bottom:1px solid var(--line);padding-bottom:12px}
+h1{font-family:var(--f-display);font-weight:700;font-size:34px;letter-spacing:.02em;margin:0;line-height:1;text-transform:uppercase}
+h1 span{color:var(--pulse)}
+.tag{color:var(--muted);font-size:14px;max-width:62ch}
+h2{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.12em;text-transform:uppercase;margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px;display:grid;gap:12px;min-width:0;align-content:start}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.two{grid-template-columns:1fr}}
+label.f{display:grid;gap:3px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-family:var(--f-display);font-weight:600}
+label.f .v{font-family:var(--f-mono);text-transform:none;letter-spacing:0;color:var(--ink);font-weight:400}
+select,input[type=number]{font-family:var(--f-mono);font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);width:100%}
+input[type=range]{width:100%;accent-color:var(--trace)}
+button{font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--ink);background:var(--ink);color:var(--panel);border-radius:4px;padding:9px 18px;cursor:pointer}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--trace);outline-offset:2px}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:4px;overflow:hidden;width:fit-content;max-width:100%}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--muted);padding:8px 12px;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.hint{font-size:13px;color:var(--muted)}
+.note{font-size:13px;padding:8px 10px;border-radius:4px;background:var(--chip);border-left:3px solid var(--warn)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.big{display:flex;flex-wrap:wrap;gap:8px 28px;align-items:baseline}
+.big div{display:grid}
+.big b{font-family:var(--f-mono);font-weight:500;font-size:26px;font-variant-numeric:tabular-nums;line-height:1.2}
+.big span{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:460px}
+th{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.ev.good{color:var(--good)} .ev.warn{color:var(--warn)} .ev.bad{color:var(--bad)}
+.flag{color:var(--bad);font-family:var(--f-body);font-size:12px}
+ol.steps{margin:0;padding-left:1.2em;display:grid;gap:4px;font-size:14px;max-width:72ch}
+#stage{position:relative;width:100%;max-width:100%;aspect-ratio:3/2;background:#000;border-radius:4px;display:grid;place-items:end center;cursor:pointer;padding-bottom:14px}
+#stage.on{background:#fff}
+#stage p{color:#666;font-family:var(--f-mono);font-size:14px;margin:0;text-align:center;padding:0 16px}
+#stage.on p{visibility:hidden}
+</style>
+<nav style="max-width:1180px;margin:0 auto;padding:10px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));font:600 13px/1.4 'Barlow Condensed',system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;display:flex;gap:16px;flex-wrap:wrap"><a href="./" style="color:inherit;opacity:.7">← All tools</a></nav>
+
+<div class="wrap">
+  <header>
+    <h1>Shutter <span>Sim</span></h1>
+    <div class="tag">Plays firings of a known length so you can check Shutter Trace and Shutter Sound against a known answer. Record the flashes or sounds with your iPhone, run them through the tool, and compare.</div>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="h-sig">
+      <h2 id="h-sig">Signal</h2>
+      <div class="seg" role="group" aria-label="Output">
+        <button type="button" id="mFlash" aria-pressed="true">Screen flash</button>
+        <button type="button" id="mClick" aria-pressed="false">Clicks</button>
+        <button type="button" id="mPulse" aria-pressed="false">Pulse edges</button>
+      </div>
+      <div class="hint" id="modeHint"></div>
+      <div class="two">
+        <label class="f" for="speed">Dial speed<select id="speed"></select></label>
+        <label class="f" for="count">Firings<input type="number" id="count" value="5" min="1" max="20" step="1"></label>
+      </div>
+      <div class="two">
+        <label class="f" for="gap">Gap between (s)<input type="number" id="gap" value="1" min="0.3" max="10" step="0.1"></label>
+        <label class="f" for="lead">Delay before first (s)<input type="number" id="lead" value="2" min="0.5" max="20" step="0.5"></label>
+      </div>
+      <label class="f" for="err">Built-in error <span class="v" id="errV"></span>
+        <input type="range" id="err" min="-1" max="1" step="0.05" value="0"></label>
+      <label class="f" for="jit">Random spread between firings <span class="v" id="jitV"></span>
+        <input type="range" id="jit" min="0" max="0.5" step="0.05" value="0"></label>
+      <div class="hint mono" id="hzInfo"></div>
+      <div class="row">
+        <button id="start" type="button">Start</button>
+        <button class="ghost" id="stop" type="button" hidden>Stop</button>
+        <button class="ghost" id="reroll" type="button">New random spread</button>
+      </div>
+      <div id="stage" aria-label="Flash target"><p id="stageText">Flash target · press Start</p></div>
+      <div class="note" id="warn" hidden></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-ans">
+      <h2 id="h-ans">Known answer</h2>
+      <div class="big" id="big"></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Firing</th><th>Starts at</th><th>True length</th><th>As speed</th><th>Vs dial</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="hint" id="ansHint"></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-how">
+    <h2 id="h-how">How to run the test</h2>
+    <ol class="steps" id="steps"></ol>
+  </section>
+</div>
+
+
+<script>
+(() => {
+const $=id=>document.getElementById(id);
+const SPEEDS=[[1,'1 s'],[1/2,'1/2'],[1/4,'1/4'],[1/8,'1/8'],[1/15,'1/15'],[1/30,'1/30'],[1/60,'1/60'],[1/125,'1/125'],[1/250,'1/250'],[1/500,'1/500'],[1/1000,'1/1000'],[1/2000,'1/2000'],[1/4000,'1/4000']];
+SPEEDS.forEach(([v,l],i)=>{const o=document.createElement('option');o.value=i;o.textContent=l;$('speed').appendChild(o)});
+$('speed').value=5;
+let mode='flash', period=1/60, hzMeasured=false, seed=Date.now()%2147483647||7, plan=[], running=false, stopFn=null;
+const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+let jitDraw=[];
+const fmtMs=s=>{const ms=s*1000;return (ms<10?ms.toFixed(3):ms<100?ms.toFixed(2):ms.toFixed(1))+' ms'};
+function fmtSpeed(sec){if(sec>=1)return sec.toFixed(2)+' s';const d=1/sec;return '1/'+(d<10?d.toFixed(1):Math.round(d))}
+const fmtEv=d=>(Math.abs(d)<0.005?'±0.00':(d>0?'+':'−')+Math.abs(d).toFixed(2))+' EV';
+const evClass=a=>Math.abs(a)<=1/3?'good':Math.abs(a)<=2/3?'warn':'bad';
+
+/* ---------- plan ---------- */
+function drawJitter(){const n=+$('count').value||1;jitDraw=Array.from({length:Math.max(20,n)},()=>rnd()*2-1)}
+function buildPlan(){
+  const E=SPEEDS[+$('speed').value][0], n=Math.max(1,Math.min(20,Math.round(+$('count').value||1)));
+  const err=+$('err').value, jit=+$('jit').value, gap=Math.max(0.3,+$('gap').value||1), lead=Math.max(0.5,+$('lead').value||2);
+  const sr=48000; let t=lead; const P=[]; let clamped=false;
+  for(let i=0;i<n;i++){
+    let target=E*Math.pow(2,err+jit*jitDraw[i]);
+    let actual,frames=null;
+    if(mode==='flash'){frames=Math.max(1,Math.round(target/period));if(target/period<0.75)clamped=true;actual=frames*period}
+    else actual=Math.max(1,Math.round(target*sr))/sr;
+    P.push({i,start:t,actual,frames,dial:E});
+    t+=actual+gap;
+  }
+  plan=P; plan.total=t; plan.clamped=clamped; plan.dial=E;
+}
+function render(rebuild=true){
+  $('errV').textContent=+$('err').value===0?'none':fmtEv(+$('err').value)+(+$('err').value>0?' (slow)':' (fast)');
+  $('jitV').textContent=+$('jit').value===0?'none':'± up to '+(+$('jit').value).toFixed(2)+' EV';
+  if(rebuild||!plan.length)buildPlan();
+  const tb=$('rows');tb.textContent='';
+  plan.forEach(p=>{const tr=tb.insertRow(),c=()=>tr.insertCell();
+    c().textContent='#'+(p.i+1); c().textContent=p.start.toFixed(2)+' s';
+    const l=c(); l.textContent=fmtMs(p.actual); if(p.frames!=null){const s=document.createElement('div');s.className='hint';s.textContent=p.frames+' screen frame'+(p.frames>1?'s':'');l.appendChild(s)}
+    c().textContent=fmtSpeed(p.actual);
+    const d=Math.log2(p.actual/p.dial),e=c(),sp=document.createElement('span');sp.className='ev '+evClass(d);sp.textContent=fmtEv(d);e.appendChild(sp);
+    if(p.measured!=null&&Math.abs(p.measured-p.actual)>period*0.5){const f=document.createElement('div');f.className='flag';f.textContent='dropped frame, shown '+fmtMs(p.measured);e.appendChild(f)}
+  });
+  const secs=plan.map(p=>p.actual), mean=secs.reduce((a,b)=>a+b,0)/secs.length;
+  const evs=secs.map(s=>Math.log2(s/mean)), spread=Math.max(...evs)-Math.min(...evs);
+  const big=$('big');big.textContent='';
+  const add=(k,v)=>{const d=document.createElement('div');const b=document.createElement('b');b.textContent=v;const s=document.createElement('span');s.textContent=k;d.append(b,s);big.append(d)};
+  add('Average length',fmtMs(mean)); add('As speed',fmtSpeed(mean)); add('Vs dial',fmtEv(Math.log2(mean/plan.dial))); if(plan.length>1)add('Spread',spread.toFixed(2)+' EV');
+  $('ansHint').textContent=mode==='flash'
+    ?'Flash lengths are whole screen frames at '+(1/period).toFixed(1)+' Hz, so the built-in error is rounded to the nearest frame. Start times are from when you press Start.'
+    :'Lengths are exact to one sample at 48 kHz. Start times are from when you press Start.';
+  const w=[];
+  if(mode==='flash'&&plan.clamped)w.push('This screen refreshes every '+fmtMs(period)+', so it cannot flash for '+SPEEDS[+$('speed').value][1]+'. Each flash is held for one frame instead. Use Clicks or Pulse edges for fast speeds.');
+  if(mode!=='flash'&&plan.dial<1/500)w.push('Most phone speakers and microphones smear edges closer than about 2 ms, so expect Shutter Sound to struggle above 1/500 with this signal. A real photodiode does not have this limit.');
+  const ww=$('warn');ww.hidden=!w.length;ww.textContent=w.join(' ');
+}
+
+function setMode(m){
+  mode=m;[['mFlash','flash'],['mClick','click'],['mPulse','pulse']].forEach(([id,k])=>$(id).setAttribute('aria-pressed',m===k));
+  $('modeHint').textContent={flash:'The black box below goes white for a set number of screen frames. Film it in Slo-Mo and load the clip into Shutter Trace.',
+    click:'Two short clicks per firing, the set time apart. Record with Voice Memos and use Shutter Sound in Clicks mode.',
+    pulse:'A square pulse per firing. Speakers pass only its sharp edges, which look like a light sensor’s rise and fall. Use Shutter Sound in Light sensor mode.'}[m];
+  $('hzInfo').hidden=m!=='flash'; $('stage').hidden=m!=='flash';
+  const st=$('steps');st.textContent='';
+  const items=m==='flash'?[
+    'Turn the screen brightness to maximum and stop other apps from animating.',
+    'Press Start. The black box counts down, then flashes. Tap the box to stop early.',
+    'Film the box in Slo-Mo from close enough that it fills much of the frame, with exposure locked.',
+    'Load the clip into Shutter Trace, draw the measuring box inside the flash area, set Capture rate to 240, and Analyze.',
+    'Compare each reading with the table. A good result is within about 1 video frame (4.2 ms) on each firing and closer on the average.']:[
+    'Set the computer or tablet volume high. Keep the room quiet.',
+    'Start a Voice Memos recording with the iPhone a few centimetres from the speaker.',
+    'Press Start. The firings begin after the delay you set.',
+    'Stop recording and load the file into Shutter Sound in '+(m==='click'?'Clicks':'Light sensor')+' mode.',
+    'Compare each reading with the table. Readings should match within a fraction of a millisecond at slow speeds.'];
+  items.forEach(t=>{const li=document.createElement('li');li.textContent=t;st.append(li)});
+  if(m==='flash'&&!hzMeasured)measureHz().then(render); else render();
+}
+
+/* ---------- refresh rate ---------- */
+function measureHz(){
+  return new Promise(res=>{const ts=[];const step=t=>{ts.push(t);if(ts.length<45)requestAnimationFrame(step);else{
+    const d=[];for(let i=5;i<ts.length;i++)d.push(ts[i]-ts[i-1]);d.sort((a,b)=>a-b);period=d[d.length>>1]/1000;hzMeasured=true;
+    $('hzInfo').textContent='Screen refresh measured at '+(1/period).toFixed(1)+' Hz · one frame = '+fmtMs(period);res()}};
+    requestAnimationFrame(step)});
+}
+
+/* ---------- flash run ---------- */
+async function runFlash(){
+  await measureHz(); render();
+  const stage=$('stage'),txt=$('stageText');
+  stage.classList.remove('on');
+  let wake=null;try{wake=await navigator.wakeLock?.request('screen')}catch(e){}
+  let cancelled=false, raf=null;
+  const end=()=>{cancelled=true;if(raf)cancelAnimationFrame(raf);stage.classList.remove('on');txt.textContent='Flash target · press Start';try{wake&&wake.release()}catch(e){}finish()};
+  stopFn=end; stage.onclick=end;
+  const t0=performance.now(); let idx=0, state='wait', frameCount=0, whiteAt=0;
+  const tick=now=>{
+    if(cancelled)return;
+    const el=(now-t0)/1000;
+    if(state==='wait'){
+      const p=plan[idx]; const left=p.start-el;
+      txt.textContent=idx===0?'First flash in '+Math.max(0,left).toFixed(1)+' s · tap to stop':'Flash '+(idx+1)+' of '+plan.length;
+      if(left<=period/2){stage.classList.add('on');state='white';frameCount=0;whiteAt=now}
+    }else if(state==='white'){
+      frameCount++;
+      if(frameCount>=plan[idx].frames){stage.classList.remove('on');plan[idx].measured=(now-whiteAt)/1000;idx++;state=idx<plan.length?'wait':'done';
+        if(state==='done'){setTimeout(()=>{if(!cancelled)end()},800);return}}
+    }
+    raf=requestAnimationFrame(tick);
+  };
+  raf=requestAnimationFrame(tick);
+}
+
+/* ---------- audio run ---------- */
+let actx=null;
+function runAudio(){
+  actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+  actx.resume&&actx.resume();
+  const sr=actx.sampleRate;
+  // rebuild plan at device sample rate so lengths stay sample-exact
+  const n=Math.ceil((plan.total+0.5)*sr), buf=actx.createBuffer(1,n,sr), x=buf.getChannelData(0);
+  plan.forEach(p=>{p.actual=Math.max(1,Math.round(p.actual*sr))/sr});
+  const click=at=>{const s=Math.round(at*sr),L=Math.round(0.003*sr),tau=0.0004*sr;for(let j=0;j<L&&s+j<n;j++)x[s+j]+=0.9*Math.exp(-j/tau)*Math.sin(2*Math.PI*3200*j/sr)};
+  plan.forEach(p=>{
+    if(mode==='click'){click(p.start);click(p.start+p.actual)}
+    else{const a=Math.round(p.start*sr),b=Math.round((p.start+p.actual)*sr);for(let j=a;j<b&&j<n;j++)x[j]=0.8}
+  });
+  const src=actx.createBufferSource();src.buffer=buf;src.connect(actx.destination);
+  src.onended=()=>finish(); src.start();
+  stopFn=()=>{try{src.stop()}catch(e){}finish()};
+  render(false);
+}
+
+function finish(){running=false;stopFn=null;$('start').disabled=false;$('stop').hidden=true;render(false)}
+$('start').onclick=()=>{if(running)return;running=true;$('start').disabled=true;$('stop').hidden=false;plan.forEach(p=>p.measured=null);
+  if(mode==='flash')runFlash();else{buildPlan();runAudio()}};
+$('stop').onclick=()=>{stopFn&&stopFn()};
+$('reroll').onclick=()=>{drawJitter();render()};
+$('mFlash').onclick=()=>setMode('flash');$('mClick').onclick=()=>setMode('click');$('mPulse').onclick=()=>setMode('pulse');
+['speed','count','gap','lead','err','jit'].forEach(id=>$(id).addEventListener('input',()=>{if(+$('jit').value>0&&jitDraw.length<(+$('count').value||1))drawJitter();render()}));
+
+drawJitter(); setMode('flash');
+})();
+</script>
+</body></html>

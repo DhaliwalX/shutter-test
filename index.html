@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Shutter Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root{--bg:#EDF0F2;--panel:#F8FAFB;--ink:#15202A;--muted:#5A6774;--line:#CBD3DA;--pulse:#E39A2D;--trace:#1F5BB8;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--f-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#0E141A;--panel:#151D25;--ink:#E3E9EE;--muted:#93A0AD;--line:#29343F;--pulse:#E8A443;--trace:#72A4F2;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:900px;margin:0 auto;padding-block:32px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:22px}
+h1{font-family:var(--f-display);font-weight:700;font-size:44px;line-height:1;margin:0;text-transform:uppercase;letter-spacing:.02em}
+h1 span{color:var(--pulse)}
+p.lead{color:var(--muted);max-width:60ch;margin:0}
+.tools{display:grid;gap:12px}
+a.tool{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:baseline;padding:16px 18px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:inherit;text-decoration:none}
+a.tool:hover{border-color:var(--trace)}
+a.tool:focus-visible{outline:2px solid var(--trace);outline-offset:2px}
+a.tool b{font-family:var(--f-display);font-weight:700;font-size:24px;text-transform:uppercase;letter-spacing:.03em;grid-row:span 2}
+a.tool span{color:var(--muted);font-size:15px}
+a.tool em{font-style:normal;font-family:var(--f-display);font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--pulse)}
+@media (max-width:520px){a.tool{grid-template-columns:1fr}a.tool b{grid-row:auto}}
+.foot{font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Shutter <span>Tools</span></h1>
+  <p class="lead">Check a film camera’s shutter speeds with an iPhone. Everything runs in your browser; nothing is uploaded.</p>
+  <div class="tools">
+    <a class="tool" href="shutter-trace.html"><b>Trace</b><em>Slo-mo video</em><span>Load a 240 fps clip of light through the film gate and read each firing’s open time. Best from 1 s to about 1/125.</span></a>
+    <a class="tool" href="shutter-sound.html"><b>Sound</b><em>Audio · photodiode or clicks</em><span>Record or load audio of a light sensor on the mic input, or of the shutter’s clicks. The light sensor is accurate to 1/4000.</span></a>
+    <a class="tool" href="shutter-sim.html"><b>Sim</b><em>Test signals</em><span>Play flashes, clicks or pulses of a known length, with optional built-in error, to check the other two tools.</span></a>
+  </div>
+  <div class="foot">Results within ±⅓ stop are excellent; ±½ stop is fine for negative film.</div>
+</div>
+</body>
+</html>
