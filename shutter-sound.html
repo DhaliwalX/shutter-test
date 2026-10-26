@@ -113,6 +113,8 @@ h3{font-family:var(--f-display);font-weight:600;font-size:14px;letter-spacing:.0
         </div>
       </div>
       <div class="hint" id="modeHint"></div>
+      <label class="f" for="expect">Expected speed
+        <select id="expect" class="wide"><option value="">Auto: nearest marked speed</option></select></label>
       <label class="f" for="sens">Sensitivity: <span class="mono" id="sensVal"></span>
         <input type="range" id="sens" min="3" max="60" step="1" value="12"></label>
       <div class="row" id="lightOpts">
@@ -191,6 +193,16 @@ h3{font-family:var(--f-display);font-weight:600;font-size:14px;letter-spacing:.0
 const $=id=>document.getElementById(id);
 const SPEEDS=[[30,'30 s'],[15,'15 s'],[8,'8 s'],[4,'4 s'],[2,'2 s'],[1,'1 s'],[1/2,'1/2'],[1/4,'1/4'],[1/8,'1/8'],[1/15,'1/15'],[1/30,'1/30'],[1/60,'1/60'],[1/125,'1/125'],[1/250,'1/250'],[1/500,'1/500'],[1/1000,'1/1000'],[1/2000,'1/2000'],[1/4000,'1/4000']];
 const SR=48000;
+SPEEDS.forEach(([,l],i)=>{const o=document.createElement('option');o.value=i;o.textContent=l;document.getElementById('expect').appendChild(o)});
+try{const v=localStorage.getItem('shutterSound.expect');if(v!==null)document.getElementById('expect').value=v}catch(e){}
+const expIdx=()=>{const v=document.getElementById('expect').value;return v===''?null:+v};
+function pickPair(ts){ // interval between consecutive clicks; with an expected speed, the pair closest to it
+  if(ts.length<2)return null; const ei=expIdx();
+  if(ei===null)return [0,1];
+  const E=SPEEDS[ei][0]; let best=[0,1],bd=1e9;
+  for(let i=0;i<ts.length-1;i++){const d=Math.abs(Math.log2((ts[i+1]-ts[i])/E));if(d<bd){bd=d;best=[i,i+1]}}
+  return best;
+}
 let st={x:null,sr:SR,isExample:true,events:[],firings:[],nominal:[],dur:0};
 let mode='light', sens={light:12,click:10};
 let view={a:0,b:1}, marks=[], hoverT=null;
@@ -241,12 +253,12 @@ function detectClicks(){
   st.events=ev;
   const G=(+$('group').value||300)/1000, F=[]; let cur=null;
   ev.forEach(v=>{ if(!cur||v.t-cur.ts[cur.ts.length-1]>G){cur={ts:[v.t]};F.push(cur)} else cur.ts.push(v.t) });
-  st.firings=F.map(f=>({start:f.ts[0],end:f.ts[f.ts.length-1],sec:f.ts.length>1?f.ts[1]-f.ts[0]:null,edges:f.ts.length}));
+  st.firings=F.map(f=>{const p=pickPair(f.ts);return {start:p?f.ts[p[0]]:f.ts[0],end:p?f.ts[p[1]]:f.ts[f.ts.length-1],sec:p?f.ts[p[1]]-f.ts[p[0]]:null,edges:f.ts.length}});
 }
 function analyze(keepNom){
   if(!st.x)return;
   mode==='light'?detectLight():detectClicks();
-  if(!keepNom||st.nominal.length!==st.firings.length) st.nominal=st.firings.map(f=>f.sec?nearest(f.sec):12);
+  if(!keepNom||st.nominal.length!==st.firings.length) {const ei=expIdx();st.nominal=st.firings.map(f=>ei!==null?ei:(f.sec?nearest(f.sec):12))}
   const w=[];
   if(mode==='light'&&st.unpaired) w.push('The last firing has an opening edge with no closing edge. If every firing reads this way, switch Opening edge to the other direction.');
   if(mode==='light'&&st.firings.length===0&&st.events.length) w.push('Edges were found but none pair up. Try the other Opening edge setting or lower the sensitivity.');
@@ -287,6 +299,9 @@ function renderResults(){
     const secs=st.firings.map(f=>f.sec).filter(Boolean);
     if(secs.length>1){const mean=secs.reduce((a,b)=>a+b,0)/secs.length,ev=secs.map(x=>Math.log2(x/mean));
       add('Average',fmtSpeed(mean)+' ('+fmtMs(mean)+')');add('Spread',(Math.max(...ev)-Math.min(...ev)).toFixed(2)+' EV')}
+    const ei=expIdx();
+    if(ei!==null&&secs.length){const mean=secs.reduce((a,b)=>a+b,0)/secs.length,d=Math.log2(mean/SPEEDS[ei][0]);
+      add('Average vs '+SPEEDS[ei][1],(d>=0?'+':'−')+Math.abs(d).toFixed(2)+' EV'+(Math.abs(d)<0.05?'':d>0?' slow':' fast'))}
   }
   $('exBadge').hidden=!st.isExample;
 }
@@ -380,6 +395,7 @@ function setMode(m){mode=m;$('mLight').setAttribute('aria-pressed',m==='light');
 $('mLight').onclick=()=>setMode('light');$('mClick').onclick=()=>setMode('click');
 $('sens').addEventListener('input',e=>{sens[mode]=+e.target.value;$('sensVal').textContent='×'+sens[mode]+' noise';analyze(true)});
 ['polarity','gap','group'].forEach(id=>$(id).addEventListener('change',()=>analyze(false)));
+$('expect').addEventListener('change',()=>{try{localStorage.setItem('shutterSound.expect',$('expect').value)}catch(e){}analyze(false)});
 
 function loadSamples(x,sr,label){
   let m=0;for(let i=0;i<x.length;i++)m+=x[i];m/=x.length||1;for(let i=0;i<x.length;i++)x[i]-=m;
@@ -483,7 +499,7 @@ function loadExample(){
     const out=alpha*(prevOut+v-prevIn);prevIn=v;prevOut=out;x[i]=out+g()*0.004}
   st={x,sr,isExample:true,events:[],firings:[],nominal:[],dur};_pk=null;marks=[];renderReadout();
   if(mode!=='light'){mode='light';setMode('light')}else analyze(false);
-  st.nominal=st.firings.map(()=>13);renderResults();
+  if(expIdx()===null)st.nominal=st.firings.map(()=>13);renderResults();
   if(st.firings[0])zoomTo(st.firings[0]);
   $('fname').textContent='No file loaded';
   setStatus('Showing example: three firings at 1/250 from a light sensor.');
